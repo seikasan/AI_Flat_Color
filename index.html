@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AI生成画像のグラデーション・ノイズを除去し、アニメ調のベタ塗りに自動修正するツール">
+  <title>AI Flat Color Fixer</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <h1 class="header-title">
+        <span class="icon">🎨</span>
+        AI Flat Color Fixer
+      </h1>
+      <p class="header-subtitle">AI画像のグラデーション・ノイズを自動修正</p>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Upload Area -->
+      <section id="upload-section" class="upload-section">
+        <div id="drop-zone" class="drop-zone">
+          <div class="drop-zone-content">
+            <div class="drop-zone-icon">📁</div>
+            <p class="drop-zone-text">画像をドラッグ&ドロップ</p>
+            <p class="drop-zone-subtext">または</p>
+            <label class="file-input-label">
+              ファイルを選択
+              <input type="file" id="file-input" accept="image/*" hidden>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- Editor Section (hidden initially) -->
+      <section id="editor-section" class="editor-section hidden">
+        <!-- Canvas Container -->
+        <div class="canvas-container">
+          <div class="canvas-wrapper">
+            <div class="canvas-label">Before</div>
+            <canvas id="canvas-before"></canvas>
+          </div>
+          <div class="canvas-wrapper">
+            <div class="canvas-label">After</div>
+            <canvas id="canvas-after"></canvas>
+          </div>
+        </div>
+
+        <!-- Controls Panel -->
+        <aside class="controls-panel">
+          <h2 class="controls-title">調整パラメータ</h2>
+          
+          <div class="control-group">
+            <label class="control-label" for="color-count">
+              色数
+              <span class="control-value" id="color-count-value">16</span>
+            </label>
+            <input type="range" id="color-count" min="2" max="64" value="16" class="control-slider">
+            <p class="control-hint">量子化後の色の数（少ないほどベタ塗り感UP）</p>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="smoothing">
+              スムージング強度
+              <span class="control-value" id="smoothing-value">3</span>
+            </label>
+            <input type="range" id="smoothing" min="0" max="10" value="3" class="control-slider">
+            <p class="control-hint">ノイズ除去の強さ</p>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="posterize">
+              ポスタライズレベル
+              <span class="control-value" id="posterize-value">8</span>
+            </label>
+            <input type="range" id="posterize" min="2" max="16" value="8" class="control-slider">
+            <p class="control-hint">色の階調数（少ないほどシャープ）</p>
+          </div>
+
+          <div class="control-group">
+            <label class="control-label" for="edge-protect">
+              エッジ保護
+              <span class="control-value" id="edge-protect-value">70%</span>
+            </label>
+            <input type="range" id="edge-protect" min="0" max="100" value="70" class="control-slider">
+            <p class="control-hint">線画・境界の保護度</p>
+          </div>
+
+          <div class="button-group">
+            <button id="reset-btn" class="btn btn-secondary">リセット</button>
+            <button id="apply-btn" class="btn btn-primary">適用</button>
+          </div>
+
+          <button id="download-btn" class="btn btn-download">
+            <span class="btn-icon">💾</span>
+            画像をダウンロード
+          </button>
+
+          <button id="new-image-btn" class="btn btn-secondary btn-full">
+            別の画像を処理
+          </button>
+        </aside>
+      </section>
+    </main>
+
+    <!-- Processing Overlay -->
+    <div id="processing-overlay" class="processing-overlay hidden">
+      <div class="processing-spinner"></div>
+      <p class="processing-text">処理中...</p>
+    </div>
+  </div>
+
+  <script src="js/imageProcessor.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
