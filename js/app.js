@@ -1,6 +1,6 @@
 /**
  * AI Flat Color Fixer - Main Application
- * UIインタラクションとワークフロー管理
+ * UIインタラクションとワークフロー管理（Web Worker対応版）
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvasBefore = document.getElementById('canvas-before');
     const canvasAfter = document.getElementById('canvas-after');
     const processingOverlay = document.getElementById('processing-overlay');
+    const processingText = document.querySelector('.processing-text');
 
     // コントロール要素
     const colorCountSlider = document.getElementById('color-count');
@@ -33,19 +34,76 @@ document.addEventListener('DOMContentLoaded', () => {
     const ctxBefore = canvasBefore.getContext('2d');
     const ctxAfter = canvasAfter.getContext('2d');
 
-    // 画像処理エンジン
-    const processor = new ImageProcessor();
+    // Web Worker
+    let worker = null;
+    let isProcessing = false;
 
-    // 現在の画像
+    // 現在の画像データ
     let currentImage = null;
+    let currentImageData = null;
 
     // デフォルトパラメータ
     const defaultParams = {
-        colorCount: 16,
+        colorCount: 32,
         smoothing: 3,
         posterizeLevel: 8,
         edgeProtect: 70
     };
+
+    // ========================================
+    // Web Worker 初期化
+    // ========================================
+
+    function initWorker() {
+        if (worker) {
+            worker.terminate();
+        }
+
+        worker = new Worker('js/imageWorker.js');
+
+        worker.onmessage = (e) => {
+            const { type, imageData, stage, percent, message } = e.data;
+
+            switch (type) {
+                case 'progress':
+                    processingText.textContent = `${stage} (${percent}%)`;
+                    break;
+
+                case 'complete':
+                    // 結果を描画
+                    const result = new ImageData(
+                        new Uint8ClampedArray(imageData.data),
+                        imageData.width,
+                        imageData.height
+                    );
+                    ctxAfter.putImageData(result, 0, 0);
+
+                    // 処理完了
+                    isProcessing = false;
+                    processingOverlay.classList.add('hidden');
+                    applyBtn.disabled = false;
+                    break;
+
+                case 'error':
+                    console.error('Worker error:', message);
+                    alert('画像処理中にエラーが発生しました: ' + message);
+                    isProcessing = false;
+                    processingOverlay.classList.add('hidden');
+                    applyBtn.disabled = false;
+                    break;
+            }
+        };
+
+        worker.onerror = (error) => {
+            console.error('Worker error:', error);
+            isProcessing = false;
+            processingOverlay.classList.add('hidden');
+            applyBtn.disabled = false;
+        };
+    }
+
+    // 初期化
+    initWorker();
 
     // ========================================
     // ファイルアップロード処理
@@ -115,9 +173,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Before画像を描画
                 ctxBefore.drawImage(img, 0, 0, width, height);
 
-                // 画像データを処理エンジンに設定
-                const imageData = ctxBefore.getImageData(0, 0, width, height);
-                processor.setImage(imageData);
+                // 画像データを保存
+                currentImageData = ctxBefore.getImageData(0, 0, width, height);
 
                 // UIを切り替え
                 uploadSection.classList.add('hidden');
@@ -185,33 +242,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ========================================
-    // 画像処理
+    // 画像処理（Web Worker使用）
     // ========================================
 
     /**
-     * 画像処理を実行
+     * 画像処理を実行（バックグラウンド）
      */
     function processImage() {
-        if (!currentImage) return;
+        if (!currentImageData || isProcessing) return;
+
+        isProcessing = true;
+        applyBtn.disabled = true;
 
         // 処理中オーバーレイを表示
         processingOverlay.classList.remove('hidden');
+        processingText.textContent = '処理中...';
 
-        // 非同期で処理（UIブロックを避ける）
-        setTimeout(() => {
-            try {
-                const params = getParams();
-                const result = processor.process(params);
+        const params = getParams();
 
-                // 結果を描画
-                ctxAfter.putImageData(result, 0, 0);
-            } catch (error) {
-                console.error('画像処理エラー:', error);
-                alert('画像処理中にエラーが発生しました。');
-            } finally {
-                processingOverlay.classList.add('hidden');
-            }
-        }, 50);
+        // Workerにデータを送信（Transferable Objects使用で高速化）
+        const imageDataCopy = {
+            data: currentImageData.data.slice(),
+            width: currentImageData.width,
+            height: currentImageData.height
+        };
+
+        worker.postMessage({
+            type: 'process',
+            imageData: imageDataCopy,
+            params: params
+        });
     }
 
     // ========================================
@@ -239,7 +299,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 新しい画像ボタン
     newImageBtn.addEventListener('click', () => {
+        // 処理中なら中断
+        if (isProcessing) {
+            initWorker(); // Workerを再初期化
+            isProcessing = false;
+        }
+
         currentImage = null;
+        currentImageData = null;
         fileInput.value = '';
 
         // Canvas をクリア
@@ -249,5 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // UIを切り替え
         editorSection.classList.add('hidden');
         uploadSection.classList.remove('hidden');
+        processingOverlay.classList.add('hidden');
+        applyBtn.disabled = false;
     });
 });
