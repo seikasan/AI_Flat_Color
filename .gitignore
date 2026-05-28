@@ -1,0 +1,15 @@
+# Node modules
+node_modules/
+
+# TypeScript build output
+js/*.js
+js/*.js.map
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
